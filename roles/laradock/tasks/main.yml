@@ -1,0 +1,102 @@
+
+- name: create laradock folder
+  ansible.builtin.file:
+    path: "{{ laradock_dir }}"
+    state: directory
+
+- name: create data folders
+  ansible.builtin.file:
+    path: "{{ item }}" 
+    state: directory
+  loop:
+    - "{{ laradock_data_dir }}/mariadb/dunkomatic_next"
+    - "{{ laradock_data_dir }}/certbot/conf"
+    - "{{ laradock_data_dir }}/certbot/www"
+
+- name: git clone laradock
+  ansible.builtin.git: 
+    repo: https://github.com/Laradock/laradock.git
+    dest: "{{ laradock_dir }}"
+    version: master
+    update: no
+    clone: yes
+
+- name: copy laradock environment file
+  ansible.builtin.copy:
+    src: "{{ laradock_local }}/.env.prod"
+    dest: "{{ laradock_dir }}/.env"
+
+- name: copy laradock docker-compose
+  ansible.builtin.copy:
+    src: "{{ laradock_local }}/docker-compose.yml"
+    dest: "{{ laradock_dir }}/docker-compose.yml"
+
+
+# - name: modfiy enf settings
+- name: copy nginx site file
+  ansible.builtin.template:
+    src: sites.conf.j2
+    dest: "{{ laradock_dir }}/nginx/sites/{{ ansible_host }}.conf"
+
+- name: copy mariadb createdb file
+  ansible.builtin.copy:
+    src: "{{ laradock_local }}/mariadb/docker-entrypoint-initdb.d/createdb.sql"
+    dest: "{{ laradock_dir }}/mariadb/docker-entrypoint-initdb.d/createdb.sql"
+
+- name: copy mariadb cnf file
+  ansible.builtin.copy:
+    src: "{{ laradock_local }}/mariadb/my.cnf"
+    dest: "{{ laradock_dir }}/mariadb/my.cnf"
+
+- name: copy php-worker scheduled config files
+  ansible.builtin.copy:
+    src: "{{ laradock_local }}/php-worker/supervisord.d/{{ item.src }}"
+    dest: "{{ laradock_dir }}/php-worker/supervisord.d/{{ item.src }}"
+  with_items:
+    - { src: 'laravel-scheduler.conf'}
+    - { src: 'laravel-worker.conf'}
+
+- name: copy workspace crontab file
+  ansible.builtin.copy:
+    src: "{{ laradock_local }}/workspace/crontab/laradock"
+    dest: "{{ laradock_dir }}/workspace/crontab/laradock"
+
+- name: docker compose start laradock service containers
+  docker_compose:
+    state: present
+    restarted: yes
+    project_src: "{{ laradock_dir }}"
+    services:
+      # - certbot
+      - nginx
+      - mariadb
+      # - phpmyadmin
+      - workspace
+      - redis
+      - php-worker
+  register: output
+  tags:
+    - docker
+  
+- assert:
+    that:
+      - "output.services.mariadb.laradock_mariadb_1.state.running"
+      - "output.services.workspace.laradock_workspace_1.state.running"
+
+- assert:
+    that:
+      - "output.services.certbot.laradock_certbot_1.state.running"
+      - "output.services.nginx.laradock_nginx_1.state.running"
+  when: bootstrap_cert|default(False)|bool == False
+
+- name: notify slack
+  slack: 
+    domain: https://hooks.slack.com/services
+    token: "{{ slack_webhook }}"
+    msg: 'installing laradock on {{ inventory_hostname }} completed'
+    channel: "{{ slack_channel }}"
+    icon_emoji: ':raising_hands_light_skin_tone:'
+    color: green
+  delegate_to: localhost
+  become: false
+    

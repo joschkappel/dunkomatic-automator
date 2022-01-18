@@ -1,0 +1,9 @@
+- name: migrate db
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan migrate:fresh "
+    chdir: "{{ laradock_dir }}"    
+
+- name: seed test db
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan db:seed --class SysTestDatabaseSeeder"
+    chdir: "{{ laradock_dir }}"

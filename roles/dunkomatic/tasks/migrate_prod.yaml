@@ -1,0 +1,24 @@
+- name: copy v1 DB dump
+  ansible.builtin.copy:
+    src: "dunkomatic_dump.sql"
+    dest: "{{ dunkomatic_dir }}"
+  
+- name: load dump into DB
+  ansible.builtin.shell: 
+    cmd: "docker-compose exec -T mariadb mysql -u{{ db_user }} -p{{ db_pwd }} -Ddunkomatic < {{ dunkomatic_dir }}/dunkomatic_dump.sql"
+    chdir: "{{ laradock_dir }}"
+
+- name: migrate db
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan migrate:fresh "
+    chdir: "{{ laradock_dir }}"    
+
+- name: seed prod db
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan db:seed --class ProdDatabaseSeeder"
+    chdir: "{{ laradock_dir }}"  
+
+- name: empty migration DB
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan db:wipe --database dunkv1"
+    chdir: "{{ laradock_dir }}"

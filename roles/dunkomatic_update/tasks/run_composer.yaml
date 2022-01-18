@@ -1,0 +1,20 @@
+- name: get composer after hash
+  stat: path="{{ dunkomatic_dir }}/composer.json" get_md5=yes
+  register: composer_after
+
+- debug: msg='report this task as "changed" if composer.json has changed'
+  changed_when: composer_before.stat.md5 != composer_after.stat.md5
+
+- name: run composer
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; composer install -q --no-ansi --no-interaction --no-scripts --prefer-dist -o"
+    chdir: "{{ laradock_dir }}"
+  when: composer_before.stat.md5 != composer_after.stat.md5
+
+- name: composer dump autoload
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; composer dump-autoload -o"
+    chdir: "{{ laradock_dir }}"
+  when: composer_before.stat.md5 != composer_after.stat.md5
+
+  

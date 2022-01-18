@@ -1,0 +1,19 @@
+---
+- hosts: all
+  become: true
+  gather_facts: no
+  become_method: sudo
+#  vars_files:
+#    - ansible-variables.yml
+  tasks:
+
+    - name: notify slack
+      slack: 
+        domain: https://hooks.slack.com/services
+        token: "{{ slack_webhook }}"
+        msg: 'upgrading dunkomatic on {{ inventory_hostname }} completed'
+        channel: "{{ slack_channel }}"
+        icon_emoji: ':chart_with_upwards_trend:'
+        color: good
+      delegate_to: localhost
+      become: false

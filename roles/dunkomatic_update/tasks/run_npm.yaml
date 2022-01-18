@@ -1,0 +1,16 @@
+- name: get npm after hash
+  stat: path="{{ dunkomatic_dir }}/package.json" get_md5=yes
+  register: npm_after
+
+- debug: msg='report this task as "changed" if package.json has changed'
+  changed_when: npm_before.stat.md5 != npm_after.stat.md5
+
+- name: run npm
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt;  npm i -D --no-scripts && npm run prod"
+    chdir: "{{ laradock_dir }}"
+  when: npm_before.stat.md5 != npm_after.stat.md5
+
+  
+
+  

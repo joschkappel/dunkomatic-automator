@@ -1,0 +1,14 @@
+---
+- hosts: all
+  become: true
+  gather_facts: no
+  become_method: sudo
+  #vars_files:
+  #  - ansible-variables.yml
+  tasks:
+    - name: set maintenance mode
+      ansible.builtin.shell:
+        cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan down --retry=60"
+        chdir: "{{ laradock_dir }}"
+
+# --refresh=15 not supported yet

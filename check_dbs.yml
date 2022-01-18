@@ -1,0 +1,18 @@
+---
+- hosts: all
+  become: true
+  gather_facts: no
+  become_method: sudo
+  tasks:
+    - name: load dump into DB
+      ansible.builtin.shell: 
+        cmd: "docker-compose exec -T mariadb mysql -u{{ db_user }} -p{{ db_pwd }} -e 'SHOW DATABASES'"
+        chdir: "{{ laradock_dir }}"
+      register: stdout
+      when: migrate|default(False)|bool == True
+
+
+
+    - name: debug
+      debug:
+        var: stdout.stdout_lines

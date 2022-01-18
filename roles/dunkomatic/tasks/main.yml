@@ -1,0 +1,69 @@
+- name: create app folder
+  ansible.builtin.file:
+    path: "{{ dunkomatic_dir }}"
+    state: directory
+
+- name: git clone dunkomatic
+  ansible.builtin.git: 
+    repo: https://github.com/joschkappel/dunkomatic_next.git
+    dest: "{{ dunkomatic_dir }}"
+    version: master
+    update: yes
+    force: yes
+    clone: yes 
+
+- name: copy app environment file
+  ansible.builtin.copy:
+    src: "{{ dunkomatic_local }}/.env.prod"
+    dest: "{{ dunkomatic_dir }}/.env"
+
+- name: run composer
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; composer install -q --no-ansi --no-interaction --no-scripts --prefer-dist -o"
+    chdir: "{{ laradock_dir }}"
+
+- name: set storage folder access
+  ansible.builtin.file:
+    path: "{{ dunkomatic_dir }}/storage"
+    mode: '777'
+    recurse: yes
+
+- name: composer dump autoload
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; composer dump-autoload -o"
+    chdir: "{{ laradock_dir }}"
+
+# clear cache ???  artisan cache:clear
+
+- name: run npm
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt;  npm i -D --no-scripts && npm run prod"
+    chdir: "{{ laradock_dir }}"
+
+- name: reload caches
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan route:cache; php artisan view:cache; php artisan config:cache; php artisan event:cache"
+    chdir: "{{ laradock_dir }}"
+
+- name: run tests
+  include_tasks: test.yaml
+  when: run_tests|default(False)|bool == True
+
+- name: load production database
+  include_tasks: migrate_prod.yaml
+  when: db_load|default("DEV") == "PROD"
+
+- name: load devtest database
+  include_tasks: migrate_dev.yaml
+  when: db_load|default("DEV") == "DEV"
+
+- name: notify slack
+  slack: 
+    domain: https://hooks.slack.com/services
+    token: "{{ slack_webhook }}"
+    msg: 'installing dunkomatic on {{ inventory_hostname }} completed'
+    channel: "{{ slack_channel }}"
+    icon_emoji: ':raising_hands_light_skin_tone:'
+    color: green
+  delegate_to: localhost
+  become: false

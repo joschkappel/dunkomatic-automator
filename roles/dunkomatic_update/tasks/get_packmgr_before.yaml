@@ -1,0 +1,7 @@
+- name: get composer before hash
+  stat: path="{{ dunkomatic_dir }}/composer.json" get_md5=yes
+  register: composer_before
+
+- name: get npm before hash
+  stat: path="{{ dunkomatic_dir }}/package.json" get_md5=yes
+  register: npm_before

@@ -1,0 +1,48 @@
+- name: set maintenance mode
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan down --retry=60"
+    chdir: "{{ laradock_dir }}"
+
+- name: get package manager catalog stats
+  include_tasks: get_packmgr_before.yaml  
+
+- name: git clone dunkomatic
+  ansible.builtin.git: 
+    repo: https://github.com/joschkappel/dunkomatic_next.git
+    dest: "{{ dunkomatic_dir }}"
+    version: master
+    force: yes
+    clone: yes 
+  register: git_rs
+
+- name: run composer if package cat has changed
+  include_tasks: run_composer.yaml
+
+- name: run npm if package cat has changed
+  include_tasks: run_npm.yaml
+
+- name: copy app environment file
+  ansible.builtin.copy:
+    src: "{{ dunkomatic_local }}/.env.prod"
+    dest: "{{ dunkomatic_dir }}/.env"
+
+- name: reload caches
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan route:cache; php artisan view:cache; php artisan config:cache; php artisan event:cache"
+    chdir: "{{ laradock_dir }}"
+
+- name: set maintenance mode
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan up"
+    chdir: "{{ laradock_dir }}"
+
+- name: notify slack
+  slack: 
+    domain: https://hooks.slack.com/services
+    token: "{{ slack_webhook }}"
+    msg: 'upgrading dunkomatic on {{ inventory_hostname }} completed. Git commit {{ git_rs.after }}'
+    channel: "{{ slack_channel }}"
+    icon_emoji: ':raising_hands_light_skin_tone:'
+    color: good
+  delegate_to: localhost
+  become: false

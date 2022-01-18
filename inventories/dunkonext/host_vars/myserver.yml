@@ -1,0 +1,9 @@
+name: myserver
+ansible_host: host.com
+ansible_connection: ssh
+ansible_ssh_user: deployer
+ansible_ssh_private_key_file: folder/.ssh/id_myserver
+ansible_become_pass: deploypwd
+ansible_ssh_extra_args: '-o StrictHostKeyChecking=no'
+ansible_python_interpreter: /usr/bin/python3
+
