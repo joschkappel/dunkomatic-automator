@@ -3,8 +3,21 @@
 #####################################################################
 
 - name: Get OS release
-  raw: lsb_release -c
+  shell: lsb_release -c
   register: lsb_release
+
+
+- set_fact: 
+   codename: "{{ lsb_release.stdout | split(':') }}"
+- set_fact:
+    codename: "{{codename[1] | trim}}"
+- ansible.builtin.debug:
+    var: codename
+
+- name: change acl
+  ansible.builtin.file:
+    path:  /usr/share/keyrings/docker-archive-keyring.gpg
+    mode: a+r 
 
 - name: Update apt cache
   raw: apt-get -y update

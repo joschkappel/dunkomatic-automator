@@ -1,0 +1,34 @@
+---
+- hosts: all
+  become: true
+  gather_facts: no
+  become_method: sudo
+#  vars_files:
+#    - ansible-variables.yml
+  tasks:
+    - import_role:
+        name: initial-setup
+
+    - import_role:
+        name: docker_ce
+      when: docker_ce|default(False)|bool == True
+
+    - name: store the statistics of cert folder in the 'out' variable
+      find:
+        path: "{{ laradock_data_dir }}/certbot/certs/live"
+      register: out
+
+    - name: is certificate creation required ?
+      set_fact:
+        bootstrap_cert: "{{ cert_replacement|default(False)|bool == True  or  out.examined <= 1 }}"
+
+    - debug:
+        msg: "{{ (bootstrap_cert|bool) | ternary ('Need new certs', 'Using existing certs') }}"
+
+    - import_role:
+        name: laradock
+      when: laradock|default(False)|bool == True 
+
+    - import_role:
+        name: certbot
+      when: bootstrap_cert|default(False)|bool == True

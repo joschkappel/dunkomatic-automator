@@ -1,79 +1,110 @@
 
 - name: create certificate folders
   ansible.builtin.file:
-    path: "{{ laradock_data_dir }}/certbot/conf/live/{{ ansible_host }}" 
+    path: "{{ laradock_data_dir }}/certbot/certs/live/{{ ansible_host }}" 
     state: directory
 
-- set_fact:
-    live_path: "/etc/letsencrypt/live/{{ ansible_host }}" 
-    archive_path: "/etc/letsencrypt/archive/{{ ansible_host }}"
-    renewal_path: "/etc/letsencrypt/renewal/{{ ansible_host }}" 
-    staging_arg: "{{ ( cert_staging ) | ternary ('--staging', '' ) }}" 
-    domain_arg: "-d {{ ansible_host }}"
-    email_arg: "{{ ( cert_email=='' ) | ternary ('--register-unsafely-without-email', '--email '+cert_email ) }}"
+- name: copy http site conf
+  template:
+    src: sites.conf.j2
+    dest: "{{ laradock_dir }}/nginx/sites/{{ ansible_host }}.conf"
 
-
-- set_fact:
-    entrypoint_1: "openssl req -x509 -nodes -newkey rsa:{{cert_rsa_key_size}} -days 1 -subj '/CN=localhost' -keyout {{ live_path }}/privkey.pem -out {{ live_path }}/fullchain.pem"
-    entrypoint_2: "rm -Rf {{ live_path }} && rm -Rf {{ archive_path }} && rm -Rf {{ renewal_path }}.conf" 
-    entrypoint_3: "certbot certonly --webroot -w /var/www/certbot {{staging_arg}} {{email_arg}} --rsa-key-size={{cert_rsa_key_size}} --agree-tos --force-renewal {{domain_arg}}"
-
-- name: create dummy certificate to get nginx starting
-  shell: docker-compose run --rm --entrypoint "{{ entrypoint_1 }}" certbot
-  args:
-    chdir: "{{ laradock_dir }}"
-  register: output
-
-- debug:
-    var: output
-  when: do_debug|default(False)|bool == True
-
-- name: starting nginx on dummy cert
-  shell: docker-compose up -d --force-recreate nginx
-  args:
-    chdir: "{{ laradock_dir }}"
-  register: output
-- debug:
-    var: output
-
-- name: delete dummy certificate
-  shell: docker-compose run --rm --entrypoint "{{ entrypoint_2 }}" certbot
-  args:
-    chdir: "{{ laradock_dir }}"
-  register: output
-
-
-- name: Requesting Let's Encrypt certificate
-  shell: docker-compose run --rm --entrypoint "{{ entrypoint_3 }}" certbot
-  args:
-    chdir: "{{ laradock_dir }}"
-  register: output
-
-- debug:
-    var: output
-  when: do_debug|default(False)|bool == True
-
-- name: Reloading nginx
-  shell: docker-compose exec nginx nginx -s reload
-  args:
-    chdir: "{{ laradock_dir }}"
-  register: output
-- debug:
-    var: output
-  when: do_debug|default(False)|bool == True
-
-- name: docker compose start laradock service containers
+- name: stop nginx
   docker_compose:
     state: present
+    stopped: yes
+    project_src: "{{ laradock_dir }}"
+    services:
+      - nginx
+  tags:
+    - docker
+
+- name: rebuild and  start nginx
+  docker_compose:
+    state: present
+    restarted: yes
+    build: yes
+    nocache: yes
+    project_src: "{{ laradock_dir }}"
+    services:
+      - nginx
+  tags:
+    - docker
+
+- name: rebuild and  start certbot
+  docker_compose:
+    state: present
+    restarted: yes
+    build: yes
+    nocache: yes
     project_src: "{{ laradock_dir }}"
     services:
       - certbot
+  tags:
+    - docker
+
+- name: download nginx SSL params
+  uri:
+    url: https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf
+    dest: "{{ laradock_data_dir }}/certbot/letsencrypt/live/options-ssl-nginx.conf"
+
+- name: download SSL DH params
+  uri:
+    url: https://raw.githubusercontent.com/certbot/certbot/master/certbot/certbot/ssl-dhparams.pem
+    dest: "{{ laradock_data_dir }}/certbot/letsencrypt/live/ssl-dhparams.pem"
+
+
+- name: store the statistics of cert folder in the 'out' variable
+  find:
+    path: "{{ laradock_data_dir }}/certbot/certs/live/{{ ansible_host }}"
+  register: out
+
+- debug: 
+    var: out
+  
+
+- name: check certs are created
+  set_fact:
+    cert_exists: "{{out.examined <= 1 }}"
+
+- name: copy ssh site conf
+  template:
+    src: sites_ssh.conf.j2
+    dest: "{{ laradock_dir }}/nginx/sites/{{ ansible_host }}.conf"
+  when: cert_exists|default(False)|bool == True
+
+- name: stop nginx
+  docker_compose:
+    state: present
+    stopped: yes
+    project_src: "{{ laradock_dir }}"
+    services:
+      - nginx
+  tags:
+    - docker
+  when: cert_exists|default(False)|bool == True
+
+- name: rebuild and  start nginx
+  docker_compose:
+    state: present
+    restarted: yes
+    build: yes
+    nocache: yes
+    project_src: "{{ laradock_dir }}"
+    services:
       - nginx
   register: output
   tags:
     - docker
+  when: cert_exists|default(False)|bool == True
+
+- name: Print composer result
+  ansible.builtin.debug:
+    var: output
+    verbosity: 2
+  when: cert_exists|default(False)|bool == True
 
 - assert:
     that:
-      - "output.services.certbot.laradock_certbot_1.state.running"
       - "output.services.nginx.laradock_nginx_1.state.running"
+  when: cert_exists|default(False)|bool == True

@@ -9,14 +9,29 @@
       - apt-transport-https 
       - ca-certificates 
       - curl 
-      - software-properties-common
+      - gnupg
+    
+- name: Add Docker's official GPG key
+  shell: curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+  when: codename == 'buster'
 
 - name: Add Docker's official GPG key
-  raw: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+  shell: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+  when: codename == 'bionic'
 
+
+- name: add docker to repo (ubuntu 18-04 bionic)
+  shell: add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
+  when: codename == 'bionic'
+  
 - name: add docker to repo
-  raw: add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
+  shell: echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  when: codename == 'buster'
 
+- name: change acl
+  ansible.builtin.file:
+    path:  /usr/share/keyrings/docker-archive-keyring.gpg
+    mode: a+r 
 
 - name: install docker-ce
   apt: 

@@ -17,6 +17,19 @@
     src: "{{ dunkomatic_local }}/.env.prod"
     dest: "{{ dunkomatic_dir }}/.env"
 
+- name: start workspace container for now
+  docker_compose:
+    state: present
+    restarted: yes
+    project_src: "{{ laradock_dir }}"
+    services:
+      - workspace
+  register: output
+
+- assert:
+    that:
+      - "output.services.workspace.laradock_workspace_1.state.running"
+
 - name: run composer
   ansible.builtin.shell:
     cmd: docker-compose exec workspace sh -c "cd dunkonxt; composer install -q --no-ansi --no-interaction --no-scripts --prefer-dist -o"
@@ -28,6 +41,11 @@
     mode: '777'
     recurse: yes
 
+- name: create cloud storage bucket
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; mc alias set minio http://minio:9000 dunkuser laradock; mc mb minio/dunkomatic"
+    chdir: "{{ laradock_dir }}"
+
 - name: composer dump autoload
   ansible.builtin.shell:
     cmd: docker-compose exec workspace sh -c "cd dunkonxt; composer dump-autoload -o"
@@ -35,10 +53,10 @@
 
 # clear cache ???  artisan cache:clear
 
-- name: run npm
-  ansible.builtin.shell:
-    cmd: docker-compose exec workspace sh -c "cd dunkonxt;  npm i -D --no-scripts && npm run prod"
-    chdir: "{{ laradock_dir }}"
+# - name: run npm
+#  ansible.builtin.shell:
+#    cmd: docker-compose exec workspace sh -c "cd dunkonxt;  npm i -D --no-scripts && npm run prod"
+#    chdir: "{{ laradock_dir }}"
 
 - name: reload caches
   ansible.builtin.shell:
@@ -57,13 +75,22 @@
   include_tasks: migrate_dev.yaml
   when: db_load|default("DEV") == "DEV"
 
+
+- name: stop workspace container for now
+  docker_compose:
+    state: present
+    stopped: yes
+    project_src: "{{ laradock_dir }}"
+    services:
+      - workspace
+
 - name: notify slack
   slack: 
     domain: https://hooks.slack.com/services
     token: "{{ slack_webhook }}"
     msg: 'installing dunkomatic on {{ inventory_hostname }} completed'
     channel: "{{ slack_channel }}"
-    icon_emoji: ':raising_hands_light_skin_tone:'
-    color: green
+    icon_emoji: ':boom:'
+    color: good
   delegate_to: localhost
   become: false

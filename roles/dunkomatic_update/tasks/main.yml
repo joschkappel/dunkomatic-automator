@@ -1,3 +1,16 @@
+- name: start workspace container for now
+  docker_compose:
+    state: present
+    restarted: yes
+    project_src: "{{ laradock_dir }}"
+    services:
+      - workspace
+  register: output
+
+- assert:
+    that:
+      - "output.services.workspace.laradock_workspace_1.state.running"
+
 - name: set maintenance mode
   ansible.builtin.shell:
     cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan down --retry=60"
@@ -18,8 +31,8 @@
 - name: run composer if package cat has changed
   include_tasks: run_composer.yaml
 
-- name: run npm if package cat has changed
-  include_tasks: run_npm.yaml
+# - name: run npm if package cat has changed
+#   include_tasks: run_npm.yaml
 
 - name: copy app environment file
   ansible.builtin.copy:
@@ -31,10 +44,19 @@
     cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan route:cache; php artisan view:cache; php artisan config:cache; php artisan event:cache"
     chdir: "{{ laradock_dir }}"
 
-- name: set maintenance mode
+- name: set maintenance mode off
   ansible.builtin.shell:
     cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan up"
     chdir: "{{ laradock_dir }}"
+
+- name: stop workspace container for now
+  docker_compose:
+    state: present
+    stopped: yes
+    project_src: "{{ laradock_dir }}"
+    services:
+      - workspace
+
 
 - name: notify slack
   slack: 
@@ -42,7 +64,7 @@
     token: "{{ slack_webhook }}"
     msg: 'upgrading dunkomatic on {{ inventory_hostname }} completed. Git commit {{ git_rs.after }}'
     channel: "{{ slack_channel }}"
-    icon_emoji: ':raising_hands_light_skin_tone:'
+    icon_emoji: ':boom:'
     color: good
   delegate_to: localhost
   become: false
