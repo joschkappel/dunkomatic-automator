@@ -29,16 +29,23 @@
 
 - name: copy laradock docker-compose
   ansible.builtin.copy:
-    src: "{{ laradock_local }}/docker-compose.yml"
+    src: "{{ laradock_local }}/docker-compose.prod.yml"
     dest: "{{ laradock_dir }}/docker-compose.yml"
 
 
 # - name: modfiy enf settings
-- name: copy nginx site file
+- name: copy nginx site file v2222
   ansible.builtin.template:
     src: sites_ssh.conf.j2
     dest: "{{ laradock_dir }}/nginx/sites/{{ ansible_host }}.conf"
   when: bootstrap_cert|default(False)|bool == False
+- name: copy nginx site file dunkomatic.de
+  ansible.builtin.template:
+    src: sites_ssh.conf.j2
+    dest: "{{ laradock_dir }}/nginx/sites/{{ ansible_host }}.conf"
+  vars:
+    ansible_host: dunkomatic.de
+  when: bootstrap_cert|default(False)|bool == False  
 
 - name: copy mariadb createdb file
   ansible.builtin.copy:

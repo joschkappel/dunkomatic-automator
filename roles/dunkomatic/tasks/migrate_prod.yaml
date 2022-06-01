@@ -5,7 +5,7 @@
   
 - name: load dump into DB
   ansible.builtin.shell: 
-    cmd: "docker-compose exec -T mariadb mysql -u{{ db_user }} -p{{ db_pwd }} -Ddunkomatic < {{ dunkomatic_dir }}/dunkomatic_dump.sql"
+    cmd: "docker-compose exec -T mariadb mysql -u{{ db_user }} -p{{ db_pwd }} dunkomatic < {{ dunkomatic_dir }}/dunkomatic_dump.sql"
     chdir: "{{ laradock_dir }}"
 
 - name: migrate db

@@ -1,0 +1,11 @@
+---
+- hosts: all
+  become: true
+  gather_facts: no
+  become_method: sudo
+#  vars_files:
+#    - ansible-variables.yml
+  tasks:
+    - import_role:
+        name: certbot
+

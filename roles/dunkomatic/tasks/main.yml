@@ -45,6 +45,7 @@
   ansible.builtin.shell:
     cmd: docker-compose exec workspace sh -c "cd dunkonxt; mc alias set minio http://minio:9000 dunkuser laradock; mc mb minio/dunkomatic"
     chdir: "{{ laradock_dir }}"
+  ignore_errors: true
 
 - name: composer dump autoload
   ansible.builtin.shell:
@@ -75,14 +76,19 @@
   include_tasks: migrate_dev.yaml
   when: db_load|default("DEV") == "DEV"
 
+- name: start health checks
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan health:check"
+    chdir: "{{ laradock_dir }}"    
 
-- name: stop workspace container for now
-  docker_compose:
-    state: present
-    stopped: yes
-    project_src: "{{ laradock_dir }}"
-    services:
-      - workspace
+
+# - name: stop workspace container for now
+#   docker_compose:
+#     state: present
+#     stopped: yes
+#     project_src: "{{ laradock_dir }}"
+#     services:
+#       - workspace
 
 - name: notify slack
   slack: 
