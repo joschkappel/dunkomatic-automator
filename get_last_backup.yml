@@ -1,0 +1,22 @@
+---
+- hosts: all
+  become: true
+  gather_facts: no
+  become_method: sudo
+#  vars_files:
+#    - ansible-variables.yml
+  tasks:
+    - name: find the latest file
+      find:
+        paths: "{{ dunkomatic_dir }}/storage/app/backups"
+        file_type: file
+        age: -1d
+        age_stamp: mtime
+      register: files
+
+    - name: Copy file if found
+      fetch:
+        src: "{{ (files.files|sort(attribute='mtime', reverse=true)|first).path }}"
+        dest: "{{ dunkomatic_local  }}/storage/app/backups/"
+        flat: true
+      when: files.files|count > 0

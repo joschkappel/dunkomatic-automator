@@ -44,6 +44,11 @@
     cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan route:cache; php artisan view:cache; php artisan config:cache; php artisan event:cache"
     chdir: "{{ laradock_dir }}"
 
+- name: restart queues
+  ansible.builtin.shell:
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan queue:restart"
+    chdir: "{{ laradock_dir }}"
+
 - name: set maintenance mode off
   ansible.builtin.shell:
     cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan up"

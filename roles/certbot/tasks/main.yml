@@ -1,7 +1,7 @@
 
 - name: create certificate folders
   ansible.builtin.file:
-    path: "{{ laradock_data_dir }}/certbot/certs/live/{{ ansible_host }}" 
+    path: "{{ laradock_data_dir }}/certbot/certs" 
     state: directory
 
 - name: copy http site conf
@@ -46,17 +46,17 @@
 - name: download nginx SSL params
   uri:
     url: https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf
-    dest: "{{ laradock_data_dir }}/certbot/letsencrypt/live/options-ssl-nginx.conf"
+    dest: "{{ laradock_data_dir }}/certbot/letsencrypt/options-ssl-nginx.conf"
 
 - name: download SSL DH params
   uri:
     url: https://raw.githubusercontent.com/certbot/certbot/master/certbot/certbot/ssl-dhparams.pem
-    dest: "{{ laradock_data_dir }}/certbot/letsencrypt/live/ssl-dhparams.pem"
+    dest: "{{ laradock_data_dir }}/certbot/letsencrypt/ssl-dhparams.pem"
 
 
 - name: store the statistics of cert folder in the 'out' variable
   find:
-    path: "{{ laradock_data_dir }}/certbot/certs/live/{{ ansible_host }}"
+    path: "{{ laradock_data_dir }}/certbot/certs"
   register: out
 
 - debug: 

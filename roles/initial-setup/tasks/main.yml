@@ -18,6 +18,7 @@
   ansible.builtin.file:
     path:  /usr/share/keyrings/docker-archive-keyring.gpg
     mode: a+r 
+  ignore_errors: true
 
 - name: Update apt cache
   raw: apt-get -y update
