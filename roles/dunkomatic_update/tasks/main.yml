@@ -13,7 +13,7 @@
 
 - name: set maintenance mode
   ansible.builtin.shell:
-    cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan down --retry=60"
+    cmd: docker-compose exec workspace sh -c "cd dunkonxt; php artisan down --retry=60 --render='errors::upgrading'"
     chdir: "{{ laradock_dir }}"
 
 - name: get package manager catalog stats

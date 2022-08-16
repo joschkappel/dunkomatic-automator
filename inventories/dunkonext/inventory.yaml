@@ -1,6 +1,4 @@
-# [dead]
-# strato
 [prod]
-   netcup_prod
+netcup_prod
 [staging]
-   netcup_stage
+netcup_stage

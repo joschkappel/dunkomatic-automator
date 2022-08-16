@@ -65,7 +65,7 @@
 
 - name: check certs are created
   set_fact:
-    cert_exists: "{{out.examined <= 1 }}"
+    cert_exists: "{{out.examined >= 1 }}"
 
 - name: copy ssh site conf
   template:

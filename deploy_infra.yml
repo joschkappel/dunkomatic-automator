@@ -1,5 +1,5 @@
 ---
-- hosts: all
+- hosts: staging
   become: true
   gather_facts: no
   become_method: sudo
